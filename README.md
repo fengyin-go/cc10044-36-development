@@ -71,6 +71,25 @@ npm run dev
 | 清理作业 | `cleanup_job` | 清理作业 | 作业名称、目标路径、清理条件 |
 | 目录同步 | `catalog_sync` | 同步任务 | 任务名称、源Catalog、目标Catalog |
 
+## 流水线上线审查
+
+`/release-review` 页面与 `/api/release` 接口负责转换方案的发布治理，把“步骤依赖”推进到
+“样本核验 → 上线阶段清单 → ETL 部署取数”：
+
+- **样本核验**：按转换步骤录入输入/输出样本，记录时固化当时的输入、输出和转换版本；
+  清洗步骤校验必填、主键唯一、输出来源可追溯、数值非负，聚合步骤校验维度覆盖与汇总值一致。
+  没有样本的步骤始终显示“样本缺失”，不会被标成已核验；核验未通过的版本保持未通过。
+- **上线阶段清单**：按上线单的每个分支和阶段给出“现行版本 / 候选版本 / 本次采用版本”和对应输出表。
+  订单聚合只有在同版订单清洗核验通过后才可上线；样本缺失的分支保持现行已上线版本。
+- **上线单提交**：同一张上线单可多次提交，每次提交固化当时的阶段版本与取数边界，记录提交前后版本。
+- **ETL 部署**：`POST /api/release/orders/{id}/deploy` 按最新清单为每个分支流水线写入
+  `转换方案ID`、`采用版本`、`输出数据表`，供下一次生产任务取用。
+- **取数核对**：`POST /api/release/fetch` 对生产表取数时记录实际采用的版本和输出表；
+  同一生产表同一批次只执行一次，已按某版本处理过的批次不会重复执行。
+
+主要接口：`GET /api/release/overview|plans|samples|reviews|checklist|orders|usage`、
+`POST /api/release/samples|reviews|fetch|orders/{id}/submit|orders/{id}/deploy`。
+
 ## 约定
 
 - 全部模块共享`frontend/src/views/WorkbenchView.vue|tsx`和一套资源路由。
